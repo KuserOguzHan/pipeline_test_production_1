@@ -1,6 +1,6 @@
-### 1. Adım localde fastapi çalıştır ve kontrol et.
+#### 1. Adım localde fastapi çalıştır ve kontrol et.
 
-### 2. Localde imaj ve container çalışıtır ve uygulamayı kontrol et
+#### 2. Localde imaj ve container çalışıtır ve uygulamayı kontrol et
 
 ### XXXXXXXXXXXXXXX #########################################################
 pipeline {
