@@ -2,7 +2,7 @@
 
 #### 2. Localde imaj ve container çalışıtır ve uygulamayı kontrol et
 
-### XXXXXXXXXXXXXXX #########################################################
+```
 pipeline {
     agent any
 
@@ -64,7 +64,6 @@ pipeline {
         }
     }
 }
-
-### XXXXXXXXXXXXXXX #########################################################
+```
 
 ### 3. Test ortamında çalıştırma
