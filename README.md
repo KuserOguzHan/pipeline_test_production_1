@@ -7,26 +7,13 @@ pipeline {
     agent any
 
     triggers {
-        githubPush()  // Listen for GitHub push events
+        githubPush()  // GitHub'dan gelen push'ları dinler
     }
 
     stages {
         stage('Checkout') {
             steps {
                 git branch: 'main', url: 'https://github.com/KuserOguzHan/githup_jenkins_1.git'
-            }
-        }
-
-        stage('Install Python venv') {
-            steps {
-                script {
-                    echo 'Installing python3-venv if necessary...'
-                    sh '''#!/bin/bash
-                    sudo apt-get update
-                    sudo apt-get install -y python3-venv
-                    '''
-                }
-                echo 'python3-venv installed or already present'
             }
         }
 
