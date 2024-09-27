@@ -1,6 +1,6 @@
 #### 1. Adım localde fastapi çalıştır ve kontrol et.
 
-#### 2. Localde imaj ve container çalışıtır ve uygulamayı kontrol et
+#### 2. Localde imaj ve container çalıştır ve uygulamayı kontrol et
 
 ```
 pipeline {
@@ -52,5 +52,243 @@ pipeline {
     }
 }
 ```
+### 3. Docker Ortamına bağlanma İmage oluşturma ve Gönderme
 
-### 3. Test ortamında çalıştırma
+- Dockerhub da token oluştur.
+
+```
+pipeline {
+    agent any
+
+    triggers {
+        githubPush()
+    }
+
+    environment {
+        DOCKER_IMAGE = 'hanoguz00/fastapi-app'
+        DOCKER_TAG = 'latest'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                git branch: 'main', url: 'https://github.com/KuserOguzHan/pipeline_test_production_1.git'
+            }
+        }
+
+        stage('Docker Login') {
+            steps {
+                script {
+                    echo 'Logging into Docker Hub...'
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                        sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
+                    }
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    echo 'Building Docker image...'
+                    sh 'docker build -t $DOCKER_IMAGE:$DOCKER_TAG .'
+                }
+            }
+        }
+
+        stage('Push Docker Image to Hub') {
+            steps {
+                script {
+                    echo 'Pushing Docker image to Docker Hub...'
+                    sh 'docker push $DOCKER_IMAGE:$DOCKER_TAG'
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()
+        }
+    }
+}
+
+
+```
+#### 4.1. Kubectl deployment
+
+- Service ve deployment yaml adında dosya oluştur.
+
+```
+pipeline {
+    agent any
+
+    triggers {
+        githubPush()
+    }
+
+    environment {
+        DOCKER_IMAGE = 'hanoguz00/fastapi-app'
+        DOCKER_TAG = 'latest'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                git branch: 'main', url: 'https://github.com/KuserOguzHan/pipeline_test_production_1.git'
+            }
+        }
+
+        stage('Docker Login') {
+            steps {
+                script {
+                    echo 'Logging into Docker Hub...'
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                        sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
+                    }
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    echo 'Building Docker image...'
+                    sh 'docker build -t $DOCKER_IMAGE:$DOCKER_TAG .'
+                }
+            }
+        }
+
+        stage('Push Docker Image to Hub') {
+            steps {
+                script {
+                    echo 'Pushing Docker image to Docker Hub...'
+                    sh 'docker push $DOCKER_IMAGE:$DOCKER_TAG'
+                }
+            }
+        }
+        
+        stage('Deploy to Kubernetes') {
+            steps {
+                script {
+                    echo 'Deploying to Kubernetes...'
+                    // Kubeconfig dosyasını kullanarak kubectl ile bağlantı kur
+                    sh 'kubectl --kubeconfig=$KUBE_CONFIG apply -f deployment.yaml'
+                    sh 'kubectl --kubeconfig=$KUBE_CONFIG apply -f service.yaml'
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()
+        }
+    }
+}
+```
+
+- Bu komut localde ubuntuda çalıştır.
+
+```
+minikube service fastapi-app-service
+```
+
+#### 4.2. Minikube komutu jenkins ile jenkinsfile da çalıştırmak.
+
+```
+pipeline {
+    agent any
+
+    triggers {
+        githubPush()
+    }
+
+    environment {
+        DOCKER_IMAGE = 'hanoguz00/fastapi-app'
+        DOCKER_TAG = 'latest'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                git branch: 'main', url: 'https://github.com/KuserOguzHan/pipeline_test_production_1.git'
+            }
+        }
+
+        stage('Docker Login') {
+            steps {
+                script {
+                    echo 'Logging into Docker Hub...'
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                        sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
+                    }
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    echo 'Building Docker image...'
+                    sh 'docker build -t $DOCKER_IMAGE:$DOCKER_TAG .'
+                }
+            }
+        }
+
+        stage('Push Docker Image to Hub') {
+            steps {
+                script {
+                    echo 'Pushing Docker image to Docker Hub...'
+                    sh 'docker push $DOCKER_IMAGE:$DOCKER_TAG'
+                }
+            }
+        }
+        
+        stage('Deploy to Kubernetes') {
+            steps {
+                script {
+                    echo 'Deploying to Kubernetes...'
+                    // Kubeconfig dosyasını kullanarak kubectl ile bağlantı kur
+                    sh 'kubectl --kubeconfig=$KUBE_CONFIG apply -f deployment.yaml'
+                    sh 'kubectl --kubeconfig=$KUBE_CONFIG apply -f service.yaml'
+                }
+            }
+        }
+
+        stage('Check Service Status') {
+            steps {
+                script {
+                    echo 'Checking Kubernetes service status...'
+                    sh 'kubectl get services'
+                }
+            }
+        }
+
+        stage('Minikube Service Access (Optional)') {
+            when {
+                expression {
+                    return sh(script: 'minikube status', returnStatus: true) == 0
+                }
+            }
+            steps {
+                script {
+                    echo 'Accessing the service using Minikube...'
+                    sh 'minikube service fastapi-app-service'
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()
+        }
+    }
+
+```
+
+5. Test ve prod ortamında sırasıyla uygulamayı deploy etmek.
+
+- Test ve prod için deployment ve service adında ikişer tane yaml dosyası oluştur.
+
