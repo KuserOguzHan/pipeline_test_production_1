@@ -3,10 +3,11 @@ kind: Service
 metadata:
   name: fastapi-app-test-service
 spec:
-  selector:
-    app: fastapi
+  type: NodePort
   ports:
-    - protocol: TCP
-      port: 8000
+    - port: 8000
       targetPort: 8000
-  type: ClusterIP
+      nodePort: 30001 # Minikube dışa açılan portu
+  selector:
+    app: fastapi-app-test
+
