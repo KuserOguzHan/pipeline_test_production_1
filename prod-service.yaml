@@ -5,7 +5,7 @@ metadata:
 spec:
   type: NodePort  # Burayı LoadBalancer'dan NodePort'a değiştirin
   selector:
-    app: fastapi-app-prod
+    app: fastapi
   ports:
     - protocol: TCP
       port: 8000
