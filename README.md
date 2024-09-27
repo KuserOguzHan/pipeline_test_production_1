@@ -292,3 +292,97 @@ pipeline {
 
 - Test ve prod için deployment ve service adında ikişer tane yaml dosyası oluştur.
 
+```
+pipeline {
+    agent any
+
+    triggers {
+        githubPush()
+    }
+
+    environment {
+        DOCKER_IMAGE = 'hanoguz00/fastapi-app'
+        DOCKER_TAG = 'latest'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                git branch: 'main', url: 'https://github.com/KuserOguzHan/pipeline_test_production_1.git'
+            }
+        }
+
+        stage('Docker Login') {
+            steps {
+                script {
+                    echo 'Logging into Docker Hub...'
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                        sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
+                    }
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    echo 'Building Docker image...'
+                    sh 'docker build -t $DOCKER_IMAGE:$DOCKER_TAG .'
+                }
+            }
+        }
+
+        stage('Push Docker Image to Hub') {
+            steps {
+                script {
+                    echo 'Pushing Docker image to Docker Hub...'
+                    sh 'docker push $DOCKER_IMAGE:$DOCKER_TAG'
+                }
+            }
+        }
+        
+        stage('Deploy to Test') {
+            steps {
+                script {
+                    echo 'Deploying to Test environment...'
+                    sh 'kubectl --kubeconfig=$KUBECONFIG apply -f test-deployment.yaml'
+                    sh 'kubectl --kubeconfig=$KUBECONFIG apply -f test-service.yaml'
+                }
+            }
+        }
+
+        stage('Test Application') {
+            steps {
+                script {
+                    echo 'Testing the application in Test environment...'
+                    // Burada FastAPI'yi test eden bir komut koyabilirsiniz
+                    sh 'curl http://<test-environment-ip>:8000/docs' // test ortamındaki servisin IP adresiyle değiştirilmelidir
+                }
+            }
+        }
+
+        stage('Deploy to Prod (if Test is Successful)') {
+            when {
+                expression {
+                    return currentBuild.resultIsBetterOrEqualTo('SUCCESS')
+                }
+            }
+            steps {
+                script {
+                    echo 'Deploying to Production environment...'
+                    sh 'kubectl --kubeconfig=$KUBECONFIG apply -f prod-deployment.yaml'
+                    sh 'kubectl --kubeconfig=$KUBECONFIG apply -f prod-service.yaml'
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()
+        }
+    }
+}  
+    
+    
+```
