@@ -3,11 +3,11 @@ kind: Service
 metadata:
   name: fastapi-app-prod-service
 spec:
+  type: NodePort  # Burayı LoadBalancer'dan NodePort'a değiştirin
   selector:
-    app: fastapi
+    app: fastapi-app-prod
   ports:
     - protocol: TCP
       port: 8000
       targetPort: 8000
-  type: LoadBalancer
-
+      nodePort: 31662  # Belirlediğiniz NodePort numarası
