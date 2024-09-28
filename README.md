@@ -303,6 +303,12 @@ pipeline {
     environment {
         DOCKER_IMAGE = 'hanoguz00/fastapi-app'
         DOCKER_TAG = 'latest'
+        TEST_DEPLOYMENT_FILE = 'test-deployment.yaml'
+        TEST_SERVICE_FILE = 'test-service.yaml'
+        PROD_DEPLOYMENT_FILE = 'prod-deployment.yaml'
+        PROD_SERVICE_FILE = 'prod-service.yaml'
+        TEST_NAMESPACE = 'test'
+        PROD_NAMESPACE = 'prod'
     }
 
     stages {
@@ -344,45 +350,56 @@ pipeline {
         stage('Deploy to Test') {
             steps {
                 script {
-                    echo 'Deploying to Test environment...'
-                    sh 'kubectl --kubeconfig=$KUBECONFIG apply -f test-deployment.yaml'
-                    sh 'kubectl --kubeconfig=$KUBECONFIG apply -f test-service.yaml'
+                    echo 'Deploying to Test environment in test namespace...'
+                    sh 'kubectl --kubeconfig=$KUBE_CONFIG apply -f $TEST_DEPLOYMENT_FILE -n $TEST_NAMESPACE'
+                    sh 'kubectl --kubeconfig=$KUBE_CONFIG apply -f $TEST_SERVICE_FILE -n $TEST_NAMESPACE'
                 }
             }
         }
 
-        stage('Test Application') {
+        stage('Check Test Service and Deployment Status') {
             steps {
                 script {
-                    echo 'Testing the application in Test environment...'
-                    // Burada FastAPI'yi test eden bir komut koyabilirsiniz
-                    sh 'curl http://<test-environment-ip>:8000/docs' // test ortamındaki servisin IP adresiyle değiştirilmelidir
+                    echo 'Checking Test Kubernetes service and deployment status...'
+                    sh 'kubectl get services -n $TEST_NAMESPACE'
+                    sh 'kubectl get deployments -n $TEST_NAMESPACE'
                 }
             }
         }
 
-        stage('Deploy to Prod (if Test is Successful)') {
+        stage('Deploy to Prod') {
+            steps {
+                script {
+                    echo 'Deploying to Prod environment in prod namespace...'
+                    sh 'kubectl --kubeconfig=$KUBE_CONFIG apply -f $PROD_DEPLOYMENT_FILE -n $PROD_NAMESPACE'
+                    sh 'kubectl --kubeconfig=$KUBE_CONFIG apply -f $PROD_SERVICE_FILE -n $PROD_NAMESPACE'
+                }
+            }
+        }
+
+        stage('Check Prod Service Status') {
+            steps {
+                script {
+                    echo 'Checking Prod Kubernetes service status...'
+                    sh 'kubectl get services -n $PROD_NAMESPACE'
+                }
+            }
+        }
+
+        stage('Access Prod Service via Minikube') {
             when {
                 expression {
-                    return currentBuild.resultIsBetterOrEqualTo('SUCCESS')
+                    return sh(script: 'minikube status', returnStatus: true) == 0
                 }
             }
             steps {
                 script {
-                    echo 'Deploying to Production environment...'
-                    sh 'kubectl --kubeconfig=$KUBECONFIG apply -f prod-deployment.yaml'
-                    sh 'kubectl --kubeconfig=$KUBECONFIG apply -f prod-service.yaml'
+                    echo 'Accessing the Prod service using Minikube...'
+                    sh 'minikube service fastapi-app-prod-service -n $PROD_NAMESPACE'
                 }
             }
         }
     }
-
-    post {
-        always {
-            cleanWs()
-        }
-    }
-}  
-    
+}
     
 ```
